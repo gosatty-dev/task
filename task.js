@@ -1,7 +1,6 @@
 /*
  * Server: A program that executes a task
  * A Task: Progress bar filling itself completely
- * Assumption: All task are similar, show progress bar for 20 seconds
  */
 
 var task_assigned_evt = new Event('task-assigned');
