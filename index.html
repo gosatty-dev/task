@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title></title>
+</head>
+<body>
+	<button id="add-server" onclick="addServer()">Add a server</button>
+	<button id="remove-server" onclick="removeServer()">Remove a server</button>
+
+
+	<input type="number" id='no-of-tasks' value="1">
+	<button id="add-task" onclick="addTask()">Add tasks</button>
+
+	<h3>Queue</h3>
+	<div id="queue">
+	</div>
+
+	<h3>Running</h3>
+	<div id="running">
+	</div>
+</body>
+
+
+<script src="task.js"></script>
+<script>
+(function(){
+	addServer = function() {
+		server_stack.add();
+	}
+
+	addTask = function() {
+		for(var i=0; i<=parseInt(document.getElementById('no-of-tasks').value); i++ ){
+			server_stack.addTask(Task)
+		}
+	}
+
+	removeServer = function() {
+		server_stack.remove();
+	}
+
+	var redraw = function() {
+		document.getElementById('running').innerHTML = "";
+		document.getElementById('queue').innerHTML = "";
+		server_stack.tasks.map(function() {
+			var el = document.createElement('div');
+			el.innerHTML = "Task"
+			document.getElementById('queue').appendChild(el)
+		})
+	}
+	document.addEventListener("task-assigned", function() {
+		redraw();
+	})
+	document.addEventListener("task-queued", function() {
+		redraw();
+	})
+
+	
+})()
+</script>
+</html>
