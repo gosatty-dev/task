@@ -1,24 +1,33 @@
 /*
  * Server: A program that executes a task
  * A Task: Progress bar filling itself completely
+ * Assumption: All task are similar, show progress bar for 20 seconds
  */
 
-var task_assigned_evt = new Event('task-assigned');
 var task_queued_evt = new Event('task-queued');
+var server_count_evt = new Event('server-count');
 
 var ServerStack = function() {
+    this.task_count = 0;
     this.stack = [];
     this.tasks = [];
-    this.add();
+    this.events = new EventTarget();
     this.lastServer = 0;
+
+
+
+    this.add();
+
     setInterval(function() {
         console.log('Looking for task', this.tasks.length, this.stack.length);
         if(this.tasks.length){
             var task = this.tasks[0];
+            if(task.abort){
+                this.tasks.shift();
+                return;
+            }
             if(this.assignTask(task)){
-                console.log("Server found")
                 this.tasks.shift()
-                document.dispatchEvent(task_assigned_evt);
             }
         }
     }.bind(this), 500)
@@ -31,6 +40,9 @@ ServerStack.prototype.add = function() {
     
     server = new Server(this.sendTask)
     this.stack.push(server);
+    this.events.dispatchEvent(
+        new CustomEvent('server-count-changed', {detail: this})
+    );
     return {"success": "server added successfully", server: server};
 }
 
@@ -41,6 +53,9 @@ ServerStack.prototype.sendTask = function() {
 }
 
 ServerStack.prototype.addTask = function(task) {
+    task = new task();
+    task.id = this.task_count;
+    this.task_count +=1;
     this.tasks.push(task)
 }
 
@@ -69,8 +84,6 @@ ServerStack.prototype.assignTask = function(task) {
             this.lastServer = i + 1;
         }
     }
-
-
     return foundServer;
 }
 
@@ -79,6 +92,13 @@ ServerStack.prototype.remove = function() {
         return {"error": "minimum 1 server required"}
     }
     this.stack[this.stack.length - 1].stop();
+    this.stack.pop();
+    if(this.lastServer > this.stack.length){
+        this.lastServer = 0
+    }
+    this.events.dispatchEvent(
+        new CustomEvent('server-count-changed', {detail: this})
+    );
     return {"success": "server removed successfully", servers: this.servers};
 }
 
@@ -101,7 +121,7 @@ Server.prototype.poll = function() {
 
 Server.prototype.run = function() {
     clearInterval(this.proccess);
-    this.task().then(function() {
+    this.task.run().then(function() {
         this.task = false;
         if(this.shutdown){
             this.stopped = true;
@@ -127,13 +147,44 @@ Server.prototype.isAvailable = function() {
 }
 
 Task = function() {
+    this.server = false;
+    this.id = false;
+    this.running = false;
+    this.abort = false;
+
+    this.events = new EventTarget();
+}
+
+Task.prototype.run = function() {
+    this.running = true;
+
     return new Promise(function(resolve, reject){
-        setTimeout(function() {
-            console.log('Task is running');
-            resolve();
-        }, 3 * 1000)
-    })
+        if(this.abort){
+            reject();
+        }else{
+            this.events.dispatchEvent(
+                new CustomEvent('task-running', {detail: this})
+            );
+
+            setTimeout(function() {
+                this.events.dispatchEvent(
+                    new CustomEvent('task-complete', {detail: this})
+                );
+                resolve();
+            }.bind(this), 20 * 1000)
+        }
+    }.bind(this))
+}
+
+Task.prototype.stop = function() {
+    if(this.running){
+        return {"error": "Task is already running"}
+    }
+
+    this.abort = true;
+    this.events.dispatchEvent(
+        new CustomEvent('task-aborted', {detail: this})
+    );
 }
 
 server_stack = new ServerStack();
-

@@ -3,21 +3,147 @@
 <head>
 	<meta charset="UTF-8">
 	<title></title>
+	<style>
+		.flex {
+			display: flex;
+		}
+
+		.container {
+			max-width: 960px;
+			margin: 10px auto;
+		}
+
+		.toolbar {
+			justify-content: space-between;
+			padding: 10px 0;
+		}
+
+		.server-count {
+			padding: 6px 0;
+		}
+
+		button, input {
+			outline: none;
+		}
+
+		button.solid {
+			background-color: #9478B6;
+			border: 0;
+			color: #fff;
+			font-weight: bold;
+			border-radius: 4px;
+			padding: 10px;
+			padding: 5px 10px;
+			cursor: pointer;
+		}
+		button.bordered {
+			color: #9478B6;
+			border: 1px solid;
+			background-color: #fff;
+			font-weight: bold;
+			border-radius: 4px;
+			padding: 5px 10px;
+			cursor: pointer;
+		}
+
+		.toolbar button {
+			margin-left: 10px;
+		}
+
+		.task-section {
+			max-width: 600px;
+			margin: 0 auto;
+			justify-content: center;
+		}
+
+		.task-section #no-of-tasks {
+			padding: 5px 10px;
+			border: 1px solid #9478B6;
+			margin-right: 5px;
+			border-radius: 4px;
+		}
+
+		.task {
+			display: flex;
+			position: relative;
+			margin: 10px 0;
+			color: #9478B6;
+			border: 3px solid #9478B6;
+			width: calc(100% - 35px);
+		}
+		.task .content{
+			padding: 5px;
+			width: 100%;
+		}
+
+		.task .bg {
+			position: absolute;
+			top: 0;
+			left: 0;
+			height: 31px;
+			background-color: #9478B6;
+			width: 0%;
+			transition-timing-function: linear;
+			transition: width 19s;
+			z-index: -1;
+		}
+
+		.task.start{
+			color: #fff;
+		}
+		.task .remove{
+			background-image: url('delete.svg');
+			background-size: contain;
+			background-repeat: no-repeat;
+			height: 30px;
+			width: 30px;
+			margin-right: -35px;
+		}
+		.task.start .remove{
+			visibility: hidden;
+			background-image: url('delete.svg');
+		}
+		.task.start .bg {
+			width: 100%;
+		}
+
+		#count {
+			background-color: #9478B6;
+			height: 20px;
+			line-height: 20px;
+			font-size: 12px;
+			width: 20px;
+			border-radius: 20px;
+			color: #fff;
+			font-weight: bold;
+			display: inline-block;
+			text-align: center;
+		}
+	</style>
 </head>
 <body>
-	<button id="add-server" onclick="addServer()">Add a server</button>
-	<button id="remove-server" onclick="removeServer()">Remove a server</button>
+	<div class="container">
+		<div class="flex">
+		</div>
+		<div class="flex toolbar">
+			<div class="server-count">
+				<span class="label">Server Count:</span><span id="count">1</span>
+
+			</div>
+			<div>
+				<button class="solid" id="add-server" onclick="addServer()">Add a server</button>
+				<button class="bordered" id="remove-server" onclick="removeServer()">Remove a server</button>
+			</div>
+		</div>
 
 
-	<input type="number" id='no-of-tasks' value="1">
-	<button id="add-task" onclick="addTask()">Add tasks</button>
+		<div class="flex task-section">
+			<input type="number" id='no-of-tasks' value="1" max="999" min="0">
+			<button class="solid" id="add-task" onclick="addTask()">Add tasks</button>
+		</div>
 
-	<h3>Queue</h3>
-	<div id="queue">
-	</div>
-
-	<h3>Running</h3>
-	<div id="running">
+		<div id="running">
+		</div>
 	</div>
 </body>
 
@@ -30,30 +156,74 @@
 	}
 
 	addTask = function() {
-		for(var i=0; i<=parseInt(document.getElementById('no-of-tasks').value); i++ ){
+		for(var i=1; i<=parseInt(document.getElementById('no-of-tasks').value); i++ ){
 			server_stack.addTask(Task)
 		}
+
+		redraw();
 	}
 
 	removeServer = function() {
 		server_stack.remove();
 	}
 
+	server_stack.events.addEventListener("server-count-changed", function() {
+		document.getElementById('count').innerHTML = server_stack.stack.length;
+	})
+
+	var timer = function(time) {
+		var minutes = Math.floor(time / 60);
+		var seconds = time % 60;
+		if (seconds < 10) {
+			seconds = "0"+seconds;
+		}
+		return minutes+ ":" + seconds;
+	}
+
+	var intervalTimer = function(el) {
+		var timePassed = -1;
+		var timerInterval = function(){
+			timePassed = timePassed += 1;
+			var timeLeft = 20 - timePassed;
+			el.getElementsByClassName("timer-label")[0].innerHTML = timer(timeLeft);
+		}
+		timerInterval();
+		setInterval(timerInterval, 1000);
+	}
+
 	var redraw = function() {
-		document.getElementById('running').innerHTML = "";
-		document.getElementById('queue').innerHTML = "";
-		server_stack.tasks.map(function() {
-			var el = document.createElement('div');
-			el.innerHTML = "Task"
-			document.getElementById('queue').appendChild(el)
+		/*
+			for (item of document.getElementById('running').getElementsByClassName('queue')){
+				item.remove();
+			}
+			*/
+
+		server_stack.tasks.map(function(task) {
+			if(document.querySelector("[data-task-id='"+task.id+"']")){
+				return
+			}
+			var el = document.createElement("div");
+			el.setAttribute('data-task-id', task.id);
+			el.setAttribute('class', 'task queue')
+			el.innerHTML = "<div class='bg'></div><div class='content'>waiting...</div><span class='remove'></span>";
+			document.getElementById('running').appendChild(el);
+			el.getElementsByClassName('remove')[0].addEventListener('click', function() {
+				task.stop();
+			})
+			task.events.addEventListener("task-running", function() {
+				el.classList.remove("queue");
+				el.classList.add("start");
+				el.getElementsByClassName('content')[0].innerHTML = "<span class='timer-label'></span>";
+				intervalTimer(el);
+			})
+			task.events.addEventListener("task-complete", function() {
+				el.remove();
+			})
+			task.events.addEventListener("task-aborted", function() {
+				el.remove();
+			})
 		})
 	}
-	document.addEventListener("task-assigned", function() {
-		redraw();
-	})
-	document.addEventListener("task-queued", function() {
-		redraw();
-	})
 
 	
 })()
